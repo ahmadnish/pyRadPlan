@@ -253,7 +253,7 @@ class Dij(PyRadPlanBaseModel):
             if self.physical_dose is None:
                 raise ValueError("Physical dose must be calculated for dose-weighted let")
 
-            indices = out["physical_dose"] > 0.0
+            indices = out["physical_dose"] > 0.05 * np.max(out["physical_dose"])
 
             let_dose = self.let_dose.flat[scenario_index] @ intensity
             out["let"] = np.zeros_like(let_dose)
