@@ -514,3 +514,97 @@ def validate_ct(ct: Union[dict[str, Any], CT, os.PathLike, None] = None, **kwarg
         A validated CT object.
     """
     return create_ct(ct, **kwargs)
+
+
+def display_ct_overview(ct: CT) -> dict:
+    """
+    Provides an overview of a CT object, showing its attributes and their values.
+    
+    For large data structures like images, only the shape and type are shown.
+    
+    Parameters
+    ----------
+    ct : CT
+        The CT object to display information about.
+        
+    Returns
+    -------
+    dict
+        A dictionary containing an overview of the CT object's attributes.
+    """
+    overview = {}
+    
+    # Basic attributes
+    overview["cube_hu"] = {
+        "type": str(type(ct.cube_hu)),
+        "dimensions": ct.cube_hu.GetDimension(),
+        "size": ct.size,
+        "spacing": ct.cube_hu.GetSpacing(),
+        "direction": ct.direction,
+        "origin": ct.origin
+    }
+    
+    # Computed fields
+    overview["resolution"] = ct.resolution
+    overview["x"] = {"type": str(type(ct.x)), "shape": ct.x.shape, "min": float(ct.x.min()), "max": float(ct.x.max())}
+    overview["y"] = {"type": str(type(ct.y)), "shape": ct.y.shape, "min": float(ct.y.min()), "max": float(ct.y.max())}
+    overview["z"] = {"type": str(type(ct.z)), "shape": ct.z.shape, "min": float(ct.z.min()), "max": float(ct.z.max())}
+    overview["num_of_ct_scen"] = ct.num_of_ct_scen
+    overview["cube_dim"] = ct.cube_dim
+    
+    # Grid information
+    grid = ct.grid
+    overview["grid"] = {
+        "dimensions": grid.dimensions,
+        "resolution_vector": grid.resolution_vector,
+        "origin": grid.origin,
+        "direction": grid.direction.tolist() if hasattr(grid.direction, 'tolist') else grid.direction
+    }
+    
+    return overview
+
+
+def ct_to_dict(ct: CT) -> dict:
+    """
+    Convert a CT object to a dictionary with the same key names.
+    
+    This function extracts both the directly accessible attributes and computed
+    properties from a CT object and returns them in a dictionary format.
+    For SimpleITK image objects, they are preserved as-is to maintain data integrity.
+    
+    Parameters
+    ----------
+    ct : CT
+        The CT object to convert.
+        
+    Returns
+    -------
+    dict
+        A dictionary representation of the CT object with the same key names.
+    """
+    result = {}
+    
+    # Include the core sitk image
+    result["cube_hu"] = sitk.GetArrayFromImage(ct.cube_hu)  # Convert to numpy array
+    
+    # Add computed properties
+    result["resolution"] = ct.resolution
+    result["size"] = ct.size
+    result["origin"] = ct.origin
+    result["direction"] = ct.direction
+    result["num_of_ct_scen"] = ct.num_of_ct_scen
+    result["cube_dim"] = ct.cube_dim
+    result["x"] = ct.x
+    result["y"] = ct.y
+    result["z"] = ct.z
+    
+    # Add grid representation (not directly included in CT but accessible)
+    grid = ct.grid
+    result["grid"] = {
+        "dimensions": grid.dimensions,
+        "resolution_vector": grid.resolution_vector,
+        "origin": grid.origin,
+        "direction": grid.direction
+    }
+    
+    return result

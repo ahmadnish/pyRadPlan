@@ -358,3 +358,161 @@ def validate_cst(
         A StructureSet object created from the input data or keyword arguments.
     """
     return create_cst(cst_data, ct, **kwargs)
+
+
+def inspect_structure_set(cst):
+    """
+    Inspect a StructureSet object and print its structure and contents.
+    
+    Parameters
+    ----------
+    cst : StructureSet
+        The StructureSet object to inspect
+    """
+    print("=== StructureSet Overview ===")
+    
+    # Basic information
+    print(f"\nClass: {type(cst).__name__}")
+    
+    # Examine CT image (without printing large arrays)
+    print("\n--- CT Image ---")
+    if hasattr(cst, 'ct_image'):
+        ct = cst.ct_image
+        print(f"  Dimension: {ct.cube_hu.GetDimension()}")
+        print(f"  Size: {ct.cube_hu.GetSize()}")
+        print(f"  Spacing: {ct.cube_hu.GetSpacing()}")
+        print(f"  Origin: {ct.cube_hu.GetOrigin()}")
+        print(f"  Direction: {ct.cube_hu.GetDirection()}")
+    else:
+        print("  No CT image found")
+    
+    # Examine VOIs
+    print("\n--- VOIs ---")
+    if hasattr(cst, 'vois') and cst.vois:
+        print(f"  Number of VOIs: {len(cst.vois)}")
+        for i, voi in enumerate(cst.vois):
+            print(f"\n  VOI #{i+1}: {voi.name}")
+            print(f"    Type: {voi.voi_type}")
+            print(f"    Overlap Priority: {voi.overlap_priority}")
+            
+            # Print mask information without the actual mask data
+            if hasattr(voi, 'mask'):
+                mask = voi.mask
+                print(f"    Mask Dimension: {mask.GetDimension()}")
+                print(f"    Mask Size: {mask.GetSize()}")
+                
+                # Get number of non-zero voxels (structure volume)
+                mask_array = sitk.GetArrayViewFromImage(mask)
+                non_zero = np.count_nonzero(mask_array)
+                print(f"    Structure Volume: {non_zero} voxels")
+                
+                # Calculate approximate volume in cc
+                voxel_volume = np.prod(mask.GetSpacing()) / 1000  # Convert to cc
+                vol_cc = non_zero * voxel_volume
+                print(f"    Volume: {vol_cc:.2f} cc")
+            
+            # Check for objectives
+            if hasattr(voi, 'objectives') and voi.objectives:
+                print(f"    Objectives: {len(voi.objectives)}")
+                for j, obj in enumerate(voi.objectives):
+                    print(f"      Objective #{j+1}: {obj}")
+            else:
+                print("    No objectives")
+    else:
+        print("  No VOIs found")
+    
+    # Check for available properties and methods
+    print("\n--- Properties ---")
+    print(f"  VOI Types: {cst.voi_types}")
+    
+    # Target information if available
+    try:
+        target_center = cst.target_center_of_mass()
+        print(f"  Target Center of Mass: {target_center}")
+    except:
+        print("  No target center information available")
+    
+    # Additional methods
+    print("\n--- Available Methods ---")
+    methods = [
+        "target_union_voxels", "target_union_mask", "patient_voxels", 
+        "patient_mask", "target_center_of_mass", "resample_on_new_ct", 
+        "apply_overlap_priorities", "to_matrad"
+    ]
+    for method in methods:
+        if hasattr(cst, method):
+            print(f"  • {method}")
+
+# Example usage
+# inspect_structure_set(my_structure_set)
+
+def extract_structures_from_cst(cst: StructureSet) -> dict:
+    """
+    Extract structures from a StructureSet object
+    
+    Parameters
+    ----------
+    cst : StructureSet
+        The StructureSet object containing VOIs
+        
+    Returns
+    -------
+    dict
+        Dictionary of structures with masks and metadata
+    """
+    structures = {}
+    
+    for voi in cst.vois:
+        # Get the mask from the VOI
+        mask = voi.mask
+        
+        # Calculate volume in cc
+        mask_array = sitk.GetArrayViewFromImage(mask)
+        non_zero = np.count_nonzero(mask_array)
+        voxel_volume = np.prod(mask.GetSpacing()) / 1000  # Convert to cc
+        volume_cc = non_zero * voxel_volume
+        
+        # Determine location (simplified as 'Body' since specific location info isn't available)
+        location = "Body"
+        
+        # For contours, we get the indices and then convert to physical coordinates
+        # This is a simplified approach - in reality, you'd want to extract actual contours
+        indices = voi.get_indices(order="numpy")
+        
+        # Convert to 3D coordinates in physical space
+        # Note: This is a simplified approach and may not represent true contours
+        contours = []
+        if indices.size > 0:
+            # Get indices in 3D grid coordinates
+            indices_3d = np.unravel_index(indices, mask_array.shape)
+            
+            # Convert a sample of points to physical space (limit to avoid excessive data)
+            sample_size = min(1000, indices.size)
+            if sample_size > 0:
+                sample_indices = np.random.choice(range(indices.size), sample_size, replace=False)
+                points = np.vstack([indices_3d[0][sample_indices], 
+                                    indices_3d[1][sample_indices], 
+                                    indices_3d[2][sample_indices]]).T
+                
+                # Convert points to physical space using the mask's transformation
+                physical_points = []
+                for point in points:
+                    physical_point = mask.TransformIndexToPhysicalPoint(point.tolist())
+                    physical_points.append(physical_point)
+                
+                contours.append(np.array(physical_points))
+        
+        structures[voi.name] = {
+            "mask": mask_array,
+            "type": voi.voi_type,
+            "volume_cc": volume_cc,
+            "contours": contours,
+            "location": location,
+            "overlap_priority": voi.overlap_priority
+        }
+        
+        # Add any objectives if they exist
+        if hasattr(voi, 'objectives') and voi.objectives:
+            structures[voi.name]["objectives"] = voi.objectives
+    
+    return structures
