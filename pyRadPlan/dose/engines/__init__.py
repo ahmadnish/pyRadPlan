@@ -16,5 +16,5 @@ __all__ = [
     "get_engine",
     "get_available_engines",
     "register_engine",
-    "AIEngine"
+    "AIEngine",
 ]
