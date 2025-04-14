@@ -41,6 +41,9 @@ def fluence_optimization(
     _pln = validate_pln(pln)
 
     planning_prob = get_problem_from_pln(_pln)
+    planning_prob.solver.max_iter = 10  # Set maximum iterations
+    planning_prob.solver.abs_obj_tol = 1e-4  # Set looser convergence tolerance
+    planning_prob.solver.max_time = 5
 
     x, _result_info = planning_prob.solve(_ct, _cst, _stf, _dij)
 

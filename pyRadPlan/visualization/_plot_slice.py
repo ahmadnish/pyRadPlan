@@ -21,6 +21,10 @@ def plot_slice(  # noqa: PLR0913
     overlay_unit: Union[str, pint.Unit] = pint.Unit(""),
     overlay_rel_threshold: float = 0.01,
     contour_line_width: float = 1.0,
+    save_path: Optional[str] = None,
+    dpi: int = 300,
+    show: bool = True,
+    fig_size: Optional[tuple] = None,
 ):
     """Plot a slice of the CT with overlay.
 
@@ -30,6 +34,28 @@ def plot_slice(  # noqa: PLR0913
         The CT object.
     cst : StructureSet
         The StructureSet object.
+    overlay : SimpleITK.Image or numpy.ndarray, optional
+        Image to overlay on the CT.
+    view_slice : int, optional
+        Slice number to visualize.
+    plane : {'axial', 'coronal', 'sagittal'} or int, optional
+        Plane to visualize.
+    overlay_alpha : float, optional
+        Alpha value for the overlay.
+    overlay_unit : str or pint.Unit, optional
+        Unit for the overlay.
+    overlay_rel_threshold : float, optional
+        Relative threshold for the overlay.
+    contour_line_width : float, optional
+        Line width for the contours.
+    save_path : str, optional
+        Path to save the figure. If provided, the figure will be saved to this path.
+    dpi : int, optional
+        DPI for the saved figure.
+    show : bool, optional
+        Whether to display the figure. Default is True.
+    fig_size : tuple, optional
+        Figure size (width, height) in inches.
     """
 
     if ct is not None:
@@ -57,6 +83,10 @@ def plot_slice(  # noqa: PLR0913
 
     slice_indexing = tuple(slice(None) if i != plane else view_slice for i in range(3))
 
+    # Create a new figure with specified size if provided
+    if fig_size is not None:
+        plt.figure(figsize=fig_size)
+        
     plt.tick_params(
         axis="both",
         which="both",
@@ -102,4 +132,16 @@ def plot_slice(  # noqa: PLR0913
         plt.colorbar(label=format(overlay_unit, "~P"))
 
     plt.title(f"Slice z={view_slice}")
-    plt.show()
+    
+    # Save the figure if save_path is provided
+    if save_path is not None:
+        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+    
+    # Show the figure if show is True
+    if show:
+        plt.show()
+    else:
+        plt.close()
+    
+    # Return the figure for further manipulation if needed
+    return plt.gcf()

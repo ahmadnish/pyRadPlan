@@ -20,6 +20,7 @@ ct, cst = load_tg119()
 
 # Create a plan object
 pln = PhotonPlan(machine="Generic")
+pln.prop_opt = {"solver": "scipy"}
 num_of_beams = 5
 pln.prop_stf = {
     "gantry_angles": np.linspace(0, 360, num_of_beams, endpoint=False),
